@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
@@ -45,17 +46,36 @@ func (n *state) addTicketRequest(w http.ResponseWriter, req *http.Request) {
 
 	n.tickets = append(n.tickets, &ticket{nodeID, uint64(amountSats)})
 
+	fmt.Fprintf(w, "<!DOCTYPE html> <html>")
 	fmt.Fprintf(w, n.printState())
+
+	file, err := ioutil.ReadFile("client_poll.js")
+	if err != nil {
+		fmt.Print(err)
+	}
+	fmt.Fprintf(w, "<script>  %s </script> ", string(file))
+	fmt.Fprintf(w, "</html>")
 }
 
 func (n *state) handlePollInvoiceRequest(w http.ResponseWriter, req *http.Request) {
+	fmt.Println("Received connection")
 	ws, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		fmt.Fprintf(w, "ERROR %v", err)
 		return
 	}
+	n.handlePollInvoiceWs(ws)
+	fmt.Println("Written")
+}
+
+func (n *state) handlePollInvoiceWs(ws *websocket.Conn) {
 	time.Sleep(2 * time.Second)
-	ws.WriteMessage(0, []byte("Paid"))
+	fmt.Println("Writing...")
+	err := ws.WriteMessage(websocket.TextMessage, []byte("Paid"))
+	if err != nil {
+		fmt.Printf("ERR %v\n", err)
+		return
+	}
 }
 
 func handleInvoiceQR(w http.ResponseWriter, req *http.Request) {
