@@ -101,7 +101,7 @@ func (n *state) printTickets(c *gin.Context) {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 
-	c.String(http.StatusOK, n.printStateUnsafe())
+	c.HTML(http.StatusOK, "index.html", gin.H{"payload": n.tickets})
 }
 
 func (n *state) printStateUnsafe() string {
@@ -133,6 +133,7 @@ func main() {
 	}()
 
 	r := gin.Default()
+	r.LoadHTMLGlob("*.html")
 	r.GET("/", s.printTickets)
 	r.GET("/add_ticket_request", s.addTicketRequest)
 	r.GET("/invoice_qr", handleInvoiceQR)

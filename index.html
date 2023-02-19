@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Participants</h2>
+
+<ul>
+  {{range .payload}}
+  <li>Alias: {{.NodeID}} Tickets: {{.AmountSats}}</li>
+  {{ end }}
+</ul>
+
+</body>
+</html>
