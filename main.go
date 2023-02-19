@@ -2,14 +2,16 @@ package main
 
 import (
 	"fmt"
-	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
-)
 
-import qrcode "github.com/skip2/go-qrcode"
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+
+	qrcode "github.com/skip2/go-qrcode"
+)
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -35,33 +37,34 @@ type state struct {
 	countdown countdownTimer
 }
 
-func (n *state) addTicketRequest(w http.ResponseWriter, req *http.Request) {
-	nodeID := req.URL.Query().Get("node_id")
-	amountSatsString := req.URL.Query().Get("amount")
+func (n *state) addTicketRequest(c *gin.Context) {
+	nodeID := c.Request.URL.Query().Get("node_id")
+	amountSatsString := c.Request.URL.Query().Get("amount")
 	amountSats, err := strconv.ParseInt(amountSatsString, 10, 64)
 	if err != nil {
-		fmt.Fprintf(w, "ERROR %v", err)
+		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
 		return
 	}
 
 	n.tickets = append(n.tickets, &ticket{nodeID, uint64(amountSats)})
 
-	fmt.Fprintf(w, "<!DOCTYPE html> <html>")
-	fmt.Fprintf(w, n.printState())
+	result := "<!DOCTYPE html> <html>"
+	result += n.printState()
 
 	file, err := ioutil.ReadFile("client_poll.js")
 	if err != nil {
-		fmt.Print(err)
+		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
 	}
-	fmt.Fprintf(w, "<script>  %s </script> ", string(file))
-	fmt.Fprintf(w, "</html>")
+	result += fmt.Sprintf("<script>  %s </script> ", string(file))
+	result += fmt.Sprintf("</html>")
+	c.String(http.StatusOK, result)
 }
 
-func (n *state) handlePollInvoiceRequest(w http.ResponseWriter, req *http.Request) {
+func (n *state) handlePollInvoiceRequest(c *gin.Context) {
 	fmt.Println("Received connection")
-	ws, err := upgrader.Upgrade(w, req, nil)
+	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		fmt.Fprintf(w, "ERROR %v", err)
+		fmt.Fprintf(c.Writer, "ERROR %v", err)
 		return
 	}
 	n.handlePollInvoiceWs(ws)
@@ -78,19 +81,19 @@ func (n *state) handlePollInvoiceWs(ws *websocket.Conn) {
 	}
 }
 
-func handleInvoiceQR(w http.ResponseWriter, req *http.Request) {
+func handleInvoiceQR(c *gin.Context) {
 	png, err := qrcode.Encode("https://example.org", qrcode.Medium, 256)
 	if err != nil {
-		fmt.Fprintf(w, "ERROR %v", err)
+		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
 		return
 	}
 
-	w.Header().Set("Content-Type", "image/png")
-	w.Write(png)
+	c.Header("Content-Type", "image/png")
+	c.Writer.Write(png)
 }
 
-func (n *state) printTickets(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(w, n.printState())
+func (n *state) printTickets(c *gin.Context) {
+	c.String(http.StatusOK, n.printState())
 }
 
 func (n *state) printState() string {
@@ -121,9 +124,10 @@ func main() {
 		}
 	}()
 
-	http.HandleFunc("/add_ticket_request", s.addTicketRequest)
-	http.HandleFunc("/", s.printTickets)
-	http.HandleFunc("/invoice_qr", handleInvoiceQR)
-	http.HandleFunc("/ws/poll_invoice", s.handlePollInvoiceRequest)
-	http.ListenAndServe(":8090", nil)
+	r := gin.Default()
+	r.GET("/", s.printTickets)
+	r.GET("/add_ticket_request", s.addTicketRequest)
+	r.GET("/invoice_qr", handleInvoiceQR)
+	r.GET("/poll_invoice", s.handlePollInvoiceRequest)
+	r.Run(":8090")
 }
