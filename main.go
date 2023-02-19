@@ -2,12 +2,18 @@ package main
 
 import (
 	"fmt"
+	"github.com/gorilla/websocket"
 	"net/http"
 	"strconv"
 	"time"
 )
 
 import qrcode "github.com/skip2/go-qrcode"
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 type ticket struct {
 	nodeID     string
@@ -40,6 +46,16 @@ func (n *state) addTicketRequest(w http.ResponseWriter, req *http.Request) {
 	n.tickets = append(n.tickets, &ticket{nodeID, uint64(amountSats)})
 
 	fmt.Fprintf(w, n.printState())
+}
+
+func (n *state) handlePollInvoiceRequest(w http.ResponseWriter, req *http.Request) {
+	ws, err := upgrader.Upgrade(w, req, nil)
+	if err != nil {
+		fmt.Fprintf(w, "ERROR %v", err)
+		return
+	}
+	time.Sleep(2 * time.Second)
+	ws.WriteMessage(0, []byte("Paid"))
 }
 
 func handleInvoiceQR(w http.ResponseWriter, req *http.Request) {
@@ -88,5 +104,6 @@ func main() {
 	http.HandleFunc("/add_ticket_request", s.addTicketRequest)
 	http.HandleFunc("/", s.printTickets)
 	http.HandleFunc("/invoice_qr", handleInvoiceQR)
+	http.HandleFunc("/ws/poll_invoice", s.handlePollInvoiceRequest)
 	http.ListenAndServe(":8090", nil)
 }
