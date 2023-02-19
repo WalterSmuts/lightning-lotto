@@ -37,21 +37,20 @@ func (n *state) addTicketRequest(w http.ResponseWriter, req *http.Request) {
 
 	n.tickets = append(n.tickets, &ticket{nodeID, uint64(amountSats)})
 
-	var result string
-	for _, t := range n.tickets {
-		result += t.String()
-	}
-	fmt.Fprintf(w, result)
+	fmt.Fprintf(w, n.printState())
 }
 
 func (n *state) printTickets(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(w, n.printState())
+}
+
+func (n *state) printState() string {
 	tenSeconds := 10 * time.Second
-	fmt.Fprintf(w, "Time left in seconds: %f", (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds())
-	var result string
+	result := fmt.Sprintf("Time left in seconds: %f", (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds())
 	for _, t := range n.tickets {
 		result += t.String()
 	}
-	fmt.Fprintf(w, result)
+	return result
 }
 
 func main() {
