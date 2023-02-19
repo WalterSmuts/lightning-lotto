@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+import qrcode "github.com/skip2/go-qrcode"
+
 type ticket struct {
 	nodeID     string
 	amountSats uint64
@@ -38,6 +40,17 @@ func (n *state) addTicketRequest(w http.ResponseWriter, req *http.Request) {
 	n.tickets = append(n.tickets, &ticket{nodeID, uint64(amountSats)})
 
 	fmt.Fprintf(w, n.printState())
+}
+
+func handleInvoiceQR(w http.ResponseWriter, req *http.Request) {
+	png, err := qrcode.Encode("https://example.org", qrcode.Medium, 256)
+	if err != nil {
+		fmt.Fprintf(w, "ERROR %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/png")
+	w.Write(png)
 }
 
 func (n *state) printTickets(w http.ResponseWriter, req *http.Request) {
@@ -74,5 +87,6 @@ func main() {
 
 	http.HandleFunc("/add_ticket_request", s.addTicketRequest)
 	http.HandleFunc("/", s.printTickets)
+	http.HandleFunc("/invoice_qr", handleInvoiceQR)
 	http.ListenAndServe(":8090", nil)
 }
