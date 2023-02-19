@@ -12,15 +12,21 @@ type ticket struct {
 	amountSats uint64
 }
 
+type countdownTimer struct {
+	ticker   time.Ticker
+	lastTick time.Time
+}
+
 func (t *ticket) String() string {
 	return fmt.Sprintf("%s:%d\n", t.nodeID, t.amountSats)
 }
 
-type ticketList struct {
-	tickets []*ticket
+type state struct {
+	tickets   []*ticket
+	countdown countdownTimer
 }
 
-func (n *ticketList) addTicketRequest(w http.ResponseWriter, req *http.Request) {
+func (n *state) addTicketRequest(w http.ResponseWriter, req *http.Request) {
 	nodeID := req.URL.Query().Get("node_id")
 	amountSatsString := req.URL.Query().Get("amount")
 	amountSats, err := strconv.ParseInt(amountSatsString, 10, 64)
@@ -38,7 +44,9 @@ func (n *ticketList) addTicketRequest(w http.ResponseWriter, req *http.Request) 
 	fmt.Fprintf(w, result)
 }
 
-func (n *ticketList) printTickets(w http.ResponseWriter, req *http.Request) {
+func (n *state) printTickets(w http.ResponseWriter, req *http.Request) {
+	tenSeconds := 10 * time.Second
+	fmt.Fprintf(w, "Time left in seconds: %f", (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds())
 	var result string
 	for _, t := range n.tickets {
 		result += t.String()
@@ -47,8 +55,9 @@ func (n *ticketList) printTickets(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	var list ticketList
-	ticker := time.NewTicker(10 * time.Second)
+	var s state
+	countdown := countdownTimer{*time.NewTicker(10 * time.Second), time.Now()}
+	s.countdown = countdown
 	done := make(chan bool)
 
 	go func() {
@@ -56,14 +65,15 @@ func main() {
 			select {
 			case <-done:
 				return
-			case t := <-ticker.C:
+			case t := <-s.countdown.ticker.C:
 				fmt.Println("Cleared at", t)
-				list.tickets = nil
+				s.countdown.lastTick = time.Now()
+				s.tickets = nil
 			}
 		}
 	}()
 
-	http.HandleFunc("/add_ticket_request", list.addTicketRequest)
-	http.HandleFunc("/", list.printTickets)
+	http.HandleFunc("/add_ticket_request", s.addTicketRequest)
+	http.HandleFunc("/", s.printTickets)
 	http.ListenAndServe(":8090", nil)
 }
