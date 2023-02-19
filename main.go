@@ -19,9 +19,9 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-type ticket struct {
-	nodeID     string
-	amountSats uint64
+type Ticket struct {
+	NodeID     string
+	AmountSats uint64
 }
 
 type countdownTimer struct {
@@ -29,12 +29,12 @@ type countdownTimer struct {
 	lastTick time.Time
 }
 
-func (t *ticket) String() string {
-	return fmt.Sprintf("%s:%d\n", t.nodeID, t.amountSats)
+func (t *Ticket) String() string {
+	return fmt.Sprintf("%s:%d\n", t.NodeID, t.AmountSats)
 }
 
 type state struct {
-	tickets   []*ticket
+	tickets   []*Ticket
 	countdown countdownTimer
 	mu        sync.RWMutex
 }
@@ -51,7 +51,7 @@ func (n *state) addTicketRequest(c *gin.Context) {
 		return
 	}
 
-	n.tickets = append(n.tickets, &ticket{nodeID, uint64(amountSats)})
+	n.tickets = append(n.tickets, &Ticket{nodeID, uint64(amountSats)})
 
 	result := "<!DOCTYPE html> <html>"
 	result += n.printStateUnsafe()
