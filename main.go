@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,9 +36,13 @@ func (t *ticket) String() string {
 type state struct {
 	tickets   []*ticket
 	countdown countdownTimer
+	mu        sync.RWMutex
 }
 
 func (n *state) addTicketRequest(c *gin.Context) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
 	nodeID := c.Request.URL.Query().Get("node_id")
 	amountSatsString := c.Request.URL.Query().Get("amount")
 	amountSats, err := strconv.ParseInt(amountSatsString, 10, 64)
@@ -49,7 +54,7 @@ func (n *state) addTicketRequest(c *gin.Context) {
 	n.tickets = append(n.tickets, &ticket{nodeID, uint64(amountSats)})
 
 	result := "<!DOCTYPE html> <html>"
-	result += n.printState()
+	result += n.printStateUnsafe()
 
 	file, err := ioutil.ReadFile("client_poll.js")
 	if err != nil {
@@ -93,10 +98,13 @@ func handleInvoiceQR(c *gin.Context) {
 }
 
 func (n *state) printTickets(c *gin.Context) {
-	c.String(http.StatusOK, n.printState())
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+
+	c.String(http.StatusOK, n.printStateUnsafe())
 }
 
-func (n *state) printState() string {
+func (n *state) printStateUnsafe() string {
 	tenSeconds := 10 * time.Second
 	result := fmt.Sprintf("Time left in seconds: %f", (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds())
 	for _, t := range n.tickets {
