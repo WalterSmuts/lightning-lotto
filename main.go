@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type ticket struct {
@@ -47,6 +48,20 @@ func (n *ticketList) printTickets(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	var list ticketList
+	ticker := time.NewTicker(10 * time.Second)
+	done := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case t := <-ticker.C:
+				fmt.Println("Cleared at", t)
+				list.tickets = nil
+			}
+		}
+	}()
 
 	http.HandleFunc("/add_ticket_request", list.addTicketRequest)
 	http.HandleFunc("/", list.printTickets)
