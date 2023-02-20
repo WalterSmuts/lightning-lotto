@@ -111,7 +111,7 @@ func (n *state) printTickets(c *gin.Context) {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 
-	c.HTML(http.StatusOK, "index.html", gin.H{"payload": n.tickets})
+	c.HTML(http.StatusOK, "index.html", gin.H{"payload": n.tickets, "pot": n.pot})
 }
 
 func main() {
