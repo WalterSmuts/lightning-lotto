@@ -1,6 +1,10 @@
 <!DOCTYPE html> 
 <html>Time left in seconds: {{.time_left}}
 
+<p> Please pay {{.invoice}} </p>
+
+<img src="invoice_qr?invoice={{.invoice}}" alt="invoice">
+
 <script>  var uri= window.location.host + '/ws/poll_invoice'
 var uri= window.location.host + '/ws/poll_invoice'
 let socket = new WebSocket('ws://' + uri);

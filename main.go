@@ -56,7 +56,8 @@ func (n *state) addTicketRequest(c *gin.Context) {
 
 	tenSeconds := 10 * time.Second
 	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds()
-	c.HTML(http.StatusOK, "add_ticket_request.html", gin.H{"time_left": time_left})
+	invoice := TEST_INVOICE
+	c.HTML(http.StatusOK, "add_ticket_request.html", gin.H{"time_left": time_left, "invoice": invoice})
 }
 
 func (n *state) handlePollInvoiceRequest(c *gin.Context) {
@@ -81,7 +82,8 @@ func (n *state) handlePollInvoiceWs(ws *websocket.Conn) {
 }
 
 func handleInvoiceQR(c *gin.Context) {
-	png, err := qrcode.Encode(TEST_INVOICE, qrcode.Medium, 256)
+	invoice := c.Request.URL.Query().Get("invoice")
+	png, err := qrcode.Encode(invoice, qrcode.Medium, 256)
 	if err != nil {
 		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
 		return
