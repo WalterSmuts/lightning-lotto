@@ -55,7 +55,7 @@ func (n *state) addTicketRequest(c *gin.Context) {
 	tenSeconds := 10 * time.Second
 	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds()
 	invoice := TEST_INVOICE
-	c.HTML(http.StatusOK, "add_ticket_request.html", gin.H{"time_left": time_left, "invoice": invoice})
+	c.HTML(http.StatusPaymentRequired, "add_ticket_request.html", gin.H{"time_left": time_left, "invoice": invoice})
 }
 
 func (n *state) addTicket(ticket *Ticket) {
