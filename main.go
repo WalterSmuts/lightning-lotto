@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"sync"
@@ -53,16 +52,9 @@ func (n *state) addTicketRequest(c *gin.Context) {
 
 	n.tickets = append(n.tickets, &Ticket{nodeID, uint64(amountSats)})
 
-	result := "<!DOCTYPE html> <html>"
-	result += n.printStateUnsafe()
-
-	file, err := ioutil.ReadFile("client_poll.js")
-	if err != nil {
-		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
-	}
-	result += fmt.Sprintf("<script>  %s </script> ", string(file))
-	result += fmt.Sprintf("</html>")
-	c.String(http.StatusOK, result)
+	tenSeconds := 10 * time.Second
+	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds()
+	c.HTML(http.StatusOK, "add_ticket_request.html", gin.H{"time_left": time_left})
 }
 
 func (n *state) handlePollInvoiceRequest(c *gin.Context) {
@@ -102,15 +94,6 @@ func (n *state) printTickets(c *gin.Context) {
 	defer n.mu.RUnlock()
 
 	c.HTML(http.StatusOK, "index.html", gin.H{"payload": n.tickets})
-}
-
-func (n *state) printStateUnsafe() string {
-	tenSeconds := 10 * time.Second
-	result := fmt.Sprintf("Time left in seconds: %f", (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds())
-	for _, t := range n.tickets {
-		result += t.String()
-	}
-	return result
 }
 
 func main() {
