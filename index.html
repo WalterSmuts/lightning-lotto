@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html>
 <body>
+<h2>Add</h2>
+
+<form id="add_ticket">
+  <label for="fname">NodeID to pay out on win:</label><br>
+  <input type="text" name="node_id" value="03ef68ccd4b33ae540aea5bf91fcfc70137e031e0cf3823a958c3c3d69239eb7cd"><br>
+  <label for="lname">Amount in Satoshis</label><br>
+  <input type="text" name="sats" value="10"><br><br>
+  <input type="submit" value="Submit">
+</form>
 
 <h2>Participants</h2>
 
@@ -9,6 +18,17 @@
   <li>Alias: {{.NodeID}} Tickets: {{.AmountSats}}</li>
   {{ end }}
 </ul>
+
+<script>
+	const form = document.getElementById('add_ticket');
+
+	form.addEventListener('submit', (event) => {
+		event.preventDefault();
+		let node_id = form.elements['node_id'].value;
+		let sats = form.elements['sats'].value;
+		window.location.replace("/add_ticket_request?node_id=" +  node_id +"&amount=" + sats)
+	});
+</script>
 
 </body>
 </html>
