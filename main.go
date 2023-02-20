@@ -137,6 +137,6 @@ func main() {
 	r.GET("/", s.printTickets)
 	r.GET("/add_ticket_request", s.addTicketRequest)
 	r.GET("/invoice_qr", handleInvoiceQR)
-	r.GET("/poll_invoice", s.handlePollInvoiceRequest)
+	r.GET("/ws/poll_invoice", s.handlePollInvoiceRequest)
 	r.Run(":8090")
 }
