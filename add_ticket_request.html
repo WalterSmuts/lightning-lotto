@@ -14,6 +14,10 @@ socket.onopen = function(e) {
 
 socket.onmessage = function(event) {
   console.log("received data from ws: ${event.data}");
+  let message = event.data;
+  if (message == "Paid") {
+	window.location.replace("/");
+  }
 };
 
 socket.onclose = function(event) {
