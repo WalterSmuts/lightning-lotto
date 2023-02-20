@@ -72,7 +72,7 @@ func (n *state) handlePollInvoiceRequest(c *gin.Context) {
 }
 
 func (n *state) handlePollInvoiceWs(ws *websocket.Conn) {
-	time.Sleep(2 * time.Second)
+	time.Sleep(5 * time.Second)
 	fmt.Println("Writing...")
 	err := ws.WriteMessage(websocket.TextMessage, []byte("Paid"))
 	if err != nil {
