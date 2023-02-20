@@ -38,12 +38,10 @@ type state struct {
 	tickets   []*Ticket
 	countdown countdownTimer
 	mu        sync.RWMutex
+	pot       uint64
 }
 
 func (n *state) addTicketRequest(c *gin.Context) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
 	nodeID := c.Request.URL.Query().Get("node_id")
 	amountSatsString := c.Request.URL.Query().Get("amount")
 	amountSats, err := strconv.ParseInt(amountSatsString, 10, 64)
@@ -52,12 +50,28 @@ func (n *state) addTicketRequest(c *gin.Context) {
 		return
 	}
 
-	n.tickets = append(n.tickets, &Ticket{nodeID, uint64(amountSats)})
+	n.addTicket(&Ticket{nodeID, uint64(amountSats)})
 
 	tenSeconds := 10 * time.Second
 	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds()
 	invoice := TEST_INVOICE
 	c.HTML(http.StatusOK, "add_ticket_request.html", gin.H{"time_left": time_left, "invoice": invoice})
+}
+
+func (n *state) addTicket(ticket *Ticket) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.tickets = append(n.tickets, ticket)
+	n.pot += ticket.AmountSats
+}
+
+func (n *state) reset() {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	n.tickets = nil
+	n.pot = 0
+	n.countdown.lastTick = time.Now()
 }
 
 func (n *state) handlePollInvoiceRequest(c *gin.Context) {
@@ -113,8 +127,7 @@ func main() {
 				return
 			case t := <-s.countdown.ticker.C:
 				fmt.Println("Cleared at", t)
-				s.countdown.lastTick = time.Now()
-				s.tickets = nil
+				s.reset()
 			}
 		}
 	}()
