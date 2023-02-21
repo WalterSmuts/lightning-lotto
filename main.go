@@ -10,11 +10,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
+	"github.com/lightningnetwork/lnd/lnwire"
 
 	qrcode "github.com/skip2/go-qrcode"
 )
-
-const TEST_INVOICE = "lnbc100n1p3lxkw5pp5lvzkgwnvvl8tv9z3j9ssp7ntreh79tp0f2nds4dc5sy5rsm6295sdqcd35kw6r5de5kueedd3hhgar0cqzpgxqyz5vqsp5rmwx8dt2q4p8kcz4lxz30p3tc54ja9qgp5l5adpzazg30wjl0snq9qyyssq33waacw3z96u643ncagcgefluzp3d0fdtr8trf77yl7s2akp89asyxnqvy4rcuheznneat4mlyeuejc30q0f2s5fllj3nqkwr2wx35sq9ltdwt"
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -46,6 +47,7 @@ type state struct {
 	countdown countdownTimer
 	mu        sync.RWMutex
 	pot       uint64
+	lnd       lndclient.LightningClient
 }
 
 func (n *state) addTicketRequest(c *gin.Context) {
@@ -61,7 +63,17 @@ func (n *state) addTicketRequest(c *gin.Context) {
 
 	tenSeconds := 10 * time.Second
 	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds()
-	invoice := TEST_INVOICE
+
+	_, invoice, err := n.lnd.AddInvoice(c.Request.Context(), &invoicesrpc.AddInvoiceData{
+		Memo:            "lightning-lotto",
+		Value:           lnwire.MilliSatoshi(amountSats * 1000),
+		DescriptionHash: nil,
+	})
+	if err != nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
+		return
+	}
+
 	c.HTML(http.StatusPaymentRequired, "add_ticket_request.html", gin.H{"time_left": time_left, "invoice": invoice})
 }
 
@@ -144,7 +156,19 @@ func (n *state) printTickets(c *gin.Context) {
 }
 
 func main() {
+	lnd, err := lndclient.NewLndServices(&lndclient.LndServicesConfig{
+		LndAddress:  "localhost",
+		Network:     "mainnet",
+		MacaroonDir: "/home/walter/.lnd/data/chain/bitcoin/mainnet",
+		TLSPath:     "/home/walter/.lnd/tls.cert",
+	})
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+
 	var s state
+	s.lnd = lnd.Client
 	countdown := countdownTimer{*time.NewTicker(10 * time.Second), time.Now()}
 	s.countdown = countdown
 	done := make(chan bool)
