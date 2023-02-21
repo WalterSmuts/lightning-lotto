@@ -5,9 +5,9 @@
 
 <img src="invoice_qr?invoice={{.invoice}}" alt="invoice">
 
-<script>  var uri= window.location.host + '/ws/poll_invoice'
-var uri= window.location.host + '/ws/poll_invoice'
-let socket = new WebSocket('ws://' + uri);
+<script>
+var uri= window.location.host + '/ws/poll_invoice?hash={{.hash}}'
+let socket = new WebSocket('wss://' + uri);
 socket.onopen = function(e) {
   console.log("Opened WebSocket connection");
 };

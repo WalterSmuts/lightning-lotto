@@ -14,6 +14,7 @@ import (
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/channeldb"
 	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
+	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwire"
 
 	qrcode "github.com/skip2/go-qrcode"
@@ -97,7 +98,7 @@ func (n *state) addTicketRequest(c *gin.Context) {
 		return
 	}
 
-	c.HTML(http.StatusPaymentRequired, "add_ticket_request.html", gin.H{"time_left": time_left, "invoice": invoice})
+	c.HTML(http.StatusPaymentRequired, "add_ticket_request.html", gin.H{"time_left": time_left, "invoice": invoice, "hash": hash})
 }
 
 func (n *state) addTicket(ticket *Ticket) {
@@ -138,23 +139,45 @@ func (n *state) reset() {
 }
 
 func (n *state) handlePollInvoiceRequest(c *gin.Context) {
+	hash_str := c.Request.URL.Query().Get("hash")
+	hash, err := lntypes.MakeHashFromStr(hash_str)
+	if err != nil {
+		fmt.Fprintf(c.Writer, "ERROR %v", err)
+		return
+	}
+
 	fmt.Println("Received connection")
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		fmt.Fprintf(c.Writer, "ERROR %v", err)
 		return
 	}
-	n.handlePollInvoiceWs(ws)
+	n.handlePollInvoiceWs(ws, hash)
 	fmt.Println("Written")
 }
 
-func (n *state) handlePollInvoiceWs(ws *websocket.Conn) {
-	time.Sleep(5 * time.Second)
-	fmt.Println("Writing...")
-	err := ws.WriteMessage(websocket.TextMessage, []byte("Paid"))
+func (n *state) handlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
+	update_chan, err_chan, err := n.invoice_client.SubscribeSingleInvoice(context.Background(), hash)
 	if err != nil {
-		fmt.Printf("ERR %v\n", err)
+		fmt.Printf("ERROR %v", err)
 		return
+	}
+	for {
+		select {
+		case update := <-update_chan:
+			fmt.Printf("Payment %v has changed to state %v\n", hash, update)
+			if update.State == channeldb.ContractSettled {
+				err = ws.WriteMessage(websocket.TextMessage, []byte("Paid"))
+				if err != nil {
+					fmt.Printf("ERR %v\n", err)
+					return
+				}
+
+				return
+			}
+		case err := <-err_chan:
+			fmt.Printf("ERROR %v\n", err)
+		}
 	}
 }
 
