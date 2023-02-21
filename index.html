@@ -21,6 +21,14 @@
   {{ end }}
 </ul>
 
+<h2>Winners</h2>
+
+<ul>
+  {{range .winners}}
+  <li>Alias: {{.NodeID}} Amount: {{.AmountSats}}</li>
+  {{ end }}
+</ul>
+
 <script>
 	const form = document.getElementById('add_ticket');
 

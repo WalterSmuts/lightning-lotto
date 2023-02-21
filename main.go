@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"sync"
@@ -25,6 +26,11 @@ type Ticket struct {
 	AmountSats uint64
 }
 
+type Winner struct {
+	NodeID     string
+	AmountSats uint64
+}
+
 type countdownTimer struct {
 	ticker   time.Ticker
 	lastTick time.Time
@@ -36,6 +42,7 @@ func (t *Ticket) String() string {
 
 type state struct {
 	tickets   []*Ticket
+	winners   []*Winner
 	countdown countdownTimer
 	mu        sync.RWMutex
 	pot       uint64
@@ -68,6 +75,27 @@ func (n *state) addTicket(ticket *Ticket) {
 func (n *state) reset() {
 	n.mu.Lock()
 	defer n.mu.Unlock()
+	totalNumberOfTickets := 0
+	for _, ticket := range n.tickets {
+		totalNumberOfTickets += int(ticket.AmountSats)
+	}
+
+	if totalNumberOfTickets > 0 {
+		selected := rand.Intn(totalNumberOfTickets)
+		ticketSum := 0
+
+		previousTicketSum := 0
+		selected_node_id := "Unknown"
+		for _, ticket := range n.tickets {
+			ticketSum += int(ticket.AmountSats)
+			if previousTicketSum <= selected && ticketSum > selected {
+				selected_node_id = ticket.NodeID
+				break
+			}
+			previousTicketSum = ticketSum
+		}
+		n.winners = append(n.winners, &Winner{selected_node_id, n.pot})
+	}
 
 	n.tickets = nil
 	n.pot = 0
@@ -111,7 +139,7 @@ func (n *state) printTickets(c *gin.Context) {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 
-	c.HTML(http.StatusOK, "index.html", gin.H{"payload": n.tickets, "pot": n.pot})
+	c.HTML(http.StatusOK, "index.html", gin.H{"payload": n.tickets, "pot": n.pot, "winners": n.winners})
 }
 
 func main() {
