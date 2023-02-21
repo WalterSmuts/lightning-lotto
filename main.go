@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/channeldb"
 	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 
@@ -42,12 +44,13 @@ func (t *Ticket) String() string {
 }
 
 type state struct {
-	tickets   []*Ticket
-	winners   []*Winner
-	countdown countdownTimer
-	mu        sync.RWMutex
-	pot       uint64
-	lnd       lndclient.LightningClient
+	tickets        []*Ticket
+	winners        []*Winner
+	countdown      countdownTimer
+	mu             sync.RWMutex
+	pot            uint64
+	lnd            lndclient.LightningClient
+	invoice_client lndclient.InvoicesClient
 }
 
 func (n *state) addTicketRequest(c *gin.Context) {
@@ -59,16 +62,36 @@ func (n *state) addTicketRequest(c *gin.Context) {
 		return
 	}
 
-	n.addTicket(&Ticket{nodeID, uint64(amountSats)})
-
 	tenSeconds := 10 * time.Second
 	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds()
 
-	_, invoice, err := n.lnd.AddInvoice(c.Request.Context(), &invoicesrpc.AddInvoiceData{
+	hash, invoice, err := n.lnd.AddInvoice(c.Request.Context(), &invoicesrpc.AddInvoiceData{
 		Memo:            "lightning-lotto",
 		Value:           lnwire.MilliSatoshi(amountSats * 1000),
 		DescriptionHash: nil,
 	})
+
+	if err != nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
+		return
+	}
+	update_chan, err_chan, err := n.invoice_client.SubscribeSingleInvoice(context.Background(), hash)
+	go func() {
+		for {
+			select {
+			case update := <-update_chan:
+				fmt.Printf("Payment %v has changed to state %v\n", hash, update)
+				if update.State == channeldb.ContractSettled {
+					n.addTicket(&Ticket{nodeID, uint64(amountSats)})
+					return
+				}
+			case err := <-err_chan:
+				fmt.Printf("ERROR %v\n", err)
+
+			}
+		}
+	}()
+
 	if err != nil {
 		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
 		return
@@ -169,6 +192,7 @@ func main() {
 
 	var s state
 	s.lnd = lnd.Client
+	s.invoice_client = lnd.Invoices
 	countdown := countdownTimer{*time.NewTicker(10 * time.Second), time.Now()}
 	s.countdown = countdown
 	done := make(chan bool)
