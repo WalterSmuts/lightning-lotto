@@ -138,8 +138,9 @@ func handleInvoiceQR(c *gin.Context) {
 func (n *state) printTickets(c *gin.Context) {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-
-	c.HTML(http.StatusOK, "index.html", gin.H{"payload": n.tickets, "pot": n.pot, "winners": n.winners})
+	tenSeconds := 10 * time.Second
+	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds()
+	c.HTML(http.StatusOK, "index.html", gin.H{"payload": n.tickets, "pot": n.pot, "time_left": time_left, "winners": n.winners})
 }
 
 func main() {
