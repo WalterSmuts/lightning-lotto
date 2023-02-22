@@ -1,4 +1,4 @@
-module github.com/WalterSmuts/lightning-lotto
+module github.com/waltersmuts/lightning-lotto
 
 go 1.20
 
