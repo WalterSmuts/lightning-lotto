@@ -152,7 +152,7 @@ func (n *state) handlePollInvoiceRequest(c *gin.Context) {
 	fmt.Println("Received connection")
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		fmt.Fprintf(c.Writer, "ERROR %v", err)
+		fmt.Printf("ERROR %v", err)
 		return
 	}
 	n.handlePollInvoiceWs(ws, hash)
