@@ -38,7 +38,7 @@ func main() {
 	}()
 
 	r := gin.Default()
-	r.LoadHTMLGlob("*.html")
+	r.LoadHTMLGlob("static/*.html")
 	r.GET("/", s.PrintTickets)
 	r.GET("/add_ticket_request", s.AddTicketRequest)
 	r.GET("/invoice_qr", handleInvoiceQR)
