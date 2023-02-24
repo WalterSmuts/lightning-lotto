@@ -88,5 +88,5 @@ func (n *State) HandlePollInvoiceRequest(c *gin.Context) {
 
 func (n *State) PrintTickets(c *gin.Context) {
 	displayState := n.readDisplayState()
-	c.HTML(http.StatusOK, "index.html", gin.H{"payload": displayState.tickets, "pot": displayState.pot, "time_left": displayState.timeLeft, "winners": displayState.winners})
+	c.HTML(http.StatusOK, "index.html", gin.H{"payload": displayState.tickets, "pot": displayState.pot, "time_left_ms": displayState.timeLeft.Milliseconds(), "winners": displayState.winners})
 }
