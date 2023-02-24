@@ -7,11 +7,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/btcsuite/btcutil"
 	"github.com/gorilla/websocket"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/channeldb"
+	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
+	"github.com/lightningnetwork/lnd/routing/route"
 )
+
+const myNodeID string = "03ef68ccd4b33ae540aea5bf91fcfc70137e031e0cf3823a958c3c3d69239eb7cd"
 
 type Ticket struct {
 	NodeID     string
@@ -131,7 +136,44 @@ func (n *State) selectWinner(totalNumberOfTickets int) {
 		}
 		previousTicketSum = ticketSum
 	}
+	if selected_node_id != myNodeID {
+		n.payWinner(selected_node_id)
+	}
 	n.winners = append(n.winners, &Winner{selected_node_id, n.pot})
+}
+
+func (n *State) payWinner(nodeID string) {
+	vertex, err := route.NewVertexFromStr(nodeID)
+	if err != nil {
+		fmt.Printf("ERROR %v\n", err)
+		return
+	}
+	request := lndclient.SendPaymentRequest{}
+	request.KeySend = true
+	request.Amount = btcutil.Amount(n.pot)
+	request.MaxFee = btcutil.Amount(float64(n.pot) * 0.001)
+	request.Timeout = time.Minute
+	request.Target = vertex
+	paymentChan, errChan, err := n.router.SendPayment(context.Background(), request)
+	if err != nil {
+		fmt.Printf("ERROR %v", err)
+	} else {
+		go func() {
+			for {
+				select {
+				case err = <-errChan:
+					fmt.Printf("ERROR %v\n", err)
+					return
+				case status := <-paymentChan:
+					// TODO: Update winner status once status field is added
+					fmt.Printf("Payment status changed: %v\n", status)
+					if status.State == lnrpc.Payment_SUCCEEDED || status.State == lnrpc.Payment_FAILED {
+						return
+					}
+				}
+			}
+		}()
+	}
 }
 
 func (n *State) handlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
