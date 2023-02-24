@@ -42,6 +42,13 @@ type State struct {
 	invoice_client lndclient.InvoicesClient
 }
 
+type displayState struct {
+	tickets  []*Ticket
+	winners  []*Winner
+	timeLeft time.Duration
+	pot      uint64
+}
+
 func NewState() *State {
 	var s State
 	lnd, err := lndclient.NewLndServices(&lndclient.LndServicesConfig{
@@ -60,6 +67,15 @@ func NewState() *State {
 	countdown := countdownTimer{*time.NewTicker(10 * time.Second), time.Now()}
 	s.countdown = countdown
 	return &s
+}
+
+func (n *State) readDisplayState() *displayState {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	tenSeconds := 10 * time.Second
+	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick))
+
+	return &displayState{n.tickets, n.winners, time_left, n.pot}
 }
 
 func (n *State) CountdownTimerChannel() <-chan time.Time {

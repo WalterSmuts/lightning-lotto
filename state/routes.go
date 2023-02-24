@@ -89,9 +89,6 @@ func (n *State) HandlePollInvoiceRequest(c *gin.Context) {
 }
 
 func (n *State) PrintTickets(c *gin.Context) {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	tenSeconds := 10 * time.Second
-	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds()
-	c.HTML(http.StatusOK, "index.html", gin.H{"payload": n.tickets, "pot": n.pot, "time_left": time_left, "winners": n.winners})
+	displayState := n.readDisplayState()
+	c.HTML(http.StatusOK, "index.html", gin.H{"payload": displayState.tickets, "pot": displayState.pot, "time_left": displayState.timeLeft, "winners": displayState.winners})
 }
