@@ -58,6 +58,10 @@ type State struct {
 	router         lndclient.RouterClient
 }
 
+func (n *State) getPayoutSize() uint64 {
+	return uint64(float64(n.pot) * 0.99)
+}
+
 type displayState struct {
 	tickets  []*Ticket
 	winners  []*Winner
@@ -91,7 +95,7 @@ func (n *State) readDisplayState() *displayState {
 	defer n.mu.RUnlock()
 	time_left := n.countdown.timeLeft()
 
-	return &displayState{n.tickets, n.winners, time_left, n.pot}
+	return &displayState{n.tickets, n.winners, time_left, n.getPayoutSize()}
 }
 
 func (n *State) CountdownTimerChannel() <-chan time.Time {
@@ -139,7 +143,7 @@ func (n *State) selectWinner(totalNumberOfTickets int) {
 	if selected_node_id != myNodeID {
 		n.payWinner(selected_node_id)
 	}
-	n.winners = append(n.winners, &Winner{selected_node_id, n.pot})
+	n.winners = append(n.winners, &Winner{selected_node_id, n.getPayoutSize()})
 }
 
 func (n *State) payWinner(nodeID string) {
@@ -150,8 +154,8 @@ func (n *State) payWinner(nodeID string) {
 	}
 	request := lndclient.SendPaymentRequest{}
 	request.KeySend = true
-	request.Amount = btcutil.Amount(n.pot)
-	request.MaxFee = btcutil.Amount(float64(n.pot) * 0.001)
+	request.Amount = btcutil.Amount(n.getPayoutSize())
+	request.MaxFee = btcutil.Amount(float64(n.getPayoutSize()) * 0.001)
 	request.Timeout = time.Minute
 	request.Target = vertex
 	paymentChan, errChan, err := n.router.SendPayment(context.Background(), request)
