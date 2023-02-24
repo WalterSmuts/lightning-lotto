@@ -26,12 +26,16 @@ type Winner struct {
 type countdownTimer struct {
 	ticker   time.Ticker
 	lastTick time.Time
+	duration time.Duration
 }
 
 func (t countdownTimer) timeLeft() time.Duration {
-	tenSeconds := 10 * time.Second
-	time_left := (tenSeconds - time.Now().Sub(t.lastTick))
+	time_left := (t.duration - time.Now().Sub(t.lastTick))
 	return time_left
+}
+
+func newCountDownTimer(duration time.Duration) countdownTimer {
+	return countdownTimer{*time.NewTicker(duration), time.Now(), duration}
 }
 
 func (t *Ticket) String() string {
@@ -70,7 +74,7 @@ func NewState() *State {
 
 	s.lnd = lnd.Client
 	s.invoice_client = lnd.Invoices
-	countdown := countdownTimer{*time.NewTicker(10 * time.Second), time.Now()}
+	countdown := newCountDownTimer(10 * time.Second)
 	s.countdown = countdown
 	return &s
 }
