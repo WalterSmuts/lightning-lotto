@@ -31,7 +31,7 @@ func (n *State) AddTicketRequest(c *gin.Context) {
 		return
 	}
 
-	time_left := n.countdown.timeLeft()
+	timeLeft := n.countdown.timeLeft()
 
 	hash, invoice, err := n.lnd.AddInvoice(c.Request.Context(), &invoicesrpc.AddInvoiceData{
 		Memo:            "lightning-lotto",
@@ -43,17 +43,17 @@ func (n *State) AddTicketRequest(c *gin.Context) {
 		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
 		return
 	}
-	update_chan, err_chan, err := n.invoice_client.SubscribeSingleInvoice(context.Background(), hash)
+	updateChan, errChan, err := n.invoice_client.SubscribeSingleInvoice(context.Background(), hash)
 	go func() {
 		for {
 			select {
-			case update := <-update_chan:
+			case update := <-updateChan:
 				fmt.Printf("Payment %v has changed to state %v\n", hash, update)
 				if update.State == channeldb.ContractSettled {
 					n.addTicket(&Ticket{nodeID, amountSats})
 					return
 				}
-			case err := <-err_chan:
+			case err := <-errChan:
 				fmt.Printf("ERROR %v\n", err)
 
 			}
@@ -65,7 +65,7 @@ func (n *State) AddTicketRequest(c *gin.Context) {
 		return
 	}
 
-	c.HTML(http.StatusPaymentRequired, "add_ticket_request.html", gin.H{"time_left": time_left, "invoice": invoice, "hash": hash})
+	c.HTML(http.StatusPaymentRequired, "add_ticket_request.html", gin.H{"time_left": timeLeft, "invoice": invoice, "hash": hash})
 }
 
 func (n *State) HandlePollInvoiceRequest(c *gin.Context) {

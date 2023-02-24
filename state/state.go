@@ -35,8 +35,8 @@ type countdownTimer struct {
 }
 
 func (t countdownTimer) timeLeft() time.Duration {
-	time_left := (t.duration - time.Now().Sub(t.lastTick))
-	return time_left
+	timeLeft := (t.duration - time.Now().Sub(t.lastTick))
+	return timeLeft
 }
 
 func newCountDownTimer(duration time.Duration) countdownTimer {
@@ -94,9 +94,9 @@ func NewState() *State {
 func (n *State) readDisplayState() *displayState {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	time_left := n.countdown.timeLeft()
+	timeLeft := n.countdown.timeLeft()
 
-	return &displayState{n.tickets, n.winners, time_left, n.getPayoutSize()}
+	return &displayState{n.tickets, n.winners, timeLeft, n.getPayoutSize()}
 }
 
 func (n *State) CountdownTimerChannel() <-chan time.Time {
@@ -141,19 +141,19 @@ func (n *State) selectWinner(totalNumberOfTickets int) {
 	ticketSum := 0
 
 	previousTicketSum := 0
-	selected_node_id := "Unknown"
+	selectedNodeID := "Unknown"
 	for _, ticket := range n.tickets {
 		ticketSum += int(ticket.AmountSats)
 		if previousTicketSum <= selected && ticketSum > selected {
-			selected_node_id = ticket.NodeID
+			selectedNodeID = ticket.NodeID
 			break
 		}
 		previousTicketSum = ticketSum
 	}
-	if selected_node_id != myNodeID {
-		n.payWinner(selected_node_id)
+	if selectedNodeID != myNodeID {
+		n.payWinner(selectedNodeID)
 	}
-	n.winners = append(n.winners, &Winner{selected_node_id, n.getPayoutSize()})
+	n.winners = append(n.winners, &Winner{selectedNodeID, n.getPayoutSize()})
 }
 
 func (n *State) payWinner(nodeID string) {
@@ -191,14 +191,14 @@ func (n *State) payWinner(nodeID string) {
 }
 
 func (n *State) handlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
-	update_chan, err_chan, err := n.invoice_client.SubscribeSingleInvoice(context.Background(), hash)
+	updateChan, errChan, err := n.invoice_client.SubscribeSingleInvoice(context.Background(), hash)
 	if err != nil {
 		fmt.Printf("ERROR %v", err)
 		return
 	}
 	for {
 		select {
-		case update := <-update_chan:
+		case update := <-updateChan:
 			fmt.Printf("Payment %v has changed to state %v\n", hash, update)
 			if update.State == channeldb.ContractSettled {
 				err = ws.WriteMessage(websocket.TextMessage, []byte("Paid"))
@@ -209,7 +209,7 @@ func (n *State) handlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
 
 				return
 			}
-		case err := <-err_chan:
+		case err := <-errChan:
 			fmt.Printf("ERROR %v\n", err)
 		}
 	}
