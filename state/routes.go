@@ -26,7 +26,7 @@ var upgrader = websocket.Upgrader{
 func (n *State) AddTicketRequest(c *gin.Context) {
 	nodeID := c.Request.URL.Query().Get("node_id")
 	amountSatsString := c.Request.URL.Query().Get("amount")
-	amountSats, err := strconv.ParseInt(amountSatsString, 10, 64)
+	amountSats, err := strconv.ParseUint(amountSatsString, 10, 64)
 	if err != nil {
 		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
 		return
@@ -52,7 +52,7 @@ func (n *State) AddTicketRequest(c *gin.Context) {
 			case update := <-update_chan:
 				fmt.Printf("Payment %v has changed to state %v\n", hash, update)
 				if update.State == channeldb.ContractSettled {
-					n.addTicket(&Ticket{nodeID, uint64(amountSats)})
+					n.addTicket(&Ticket{nodeID, amountSats})
 					return
 				}
 			case err := <-err_chan:
