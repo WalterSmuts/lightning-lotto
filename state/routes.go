@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -32,8 +31,7 @@ func (n *State) AddTicketRequest(c *gin.Context) {
 		return
 	}
 
-	tenSeconds := 10 * time.Second
-	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick)).Seconds()
+	time_left := n.countdown.timeLeft()
 
 	hash, invoice, err := n.lnd.AddInvoice(c.Request.Context(), &invoicesrpc.AddInvoiceData{
 		Memo:            "lightning-lotto",

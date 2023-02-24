@@ -28,6 +28,12 @@ type countdownTimer struct {
 	lastTick time.Time
 }
 
+func (t countdownTimer) timeLeft() time.Duration {
+	tenSeconds := 10 * time.Second
+	time_left := (tenSeconds - time.Now().Sub(t.lastTick))
+	return time_left
+}
+
 func (t *Ticket) String() string {
 	return fmt.Sprintf("%s:%d\n", t.NodeID, t.AmountSats)
 }
@@ -72,8 +78,7 @@ func NewState() *State {
 func (n *State) readDisplayState() *displayState {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	tenSeconds := 10 * time.Second
-	time_left := (tenSeconds - time.Now().Sub(n.countdown.lastTick))
+	time_left := n.countdown.timeLeft()
 
 	return &displayState{n.tickets, n.winners, time_left, n.pot}
 }
