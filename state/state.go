@@ -109,25 +109,29 @@ func (n *State) Reset() {
 	}
 
 	if totalNumberOfTickets > 0 {
-		selected := rand.Intn(totalNumberOfTickets)
-		ticketSum := 0
-
-		previousTicketSum := 0
-		selected_node_id := "Unknown"
-		for _, ticket := range n.tickets {
-			ticketSum += int(ticket.AmountSats)
-			if previousTicketSum <= selected && ticketSum > selected {
-				selected_node_id = ticket.NodeID
-				break
-			}
-			previousTicketSum = ticketSum
-		}
-		n.winners = append(n.winners, &Winner{selected_node_id, n.pot})
+		n.selectWinner(totalNumberOfTickets)
 	}
 
 	n.tickets = nil
 	n.pot = 0
 	n.countdown.lastTick = time.Now()
+}
+
+func (n *State) selectWinner(totalNumberOfTickets int) {
+	selected := rand.Intn(totalNumberOfTickets)
+	ticketSum := 0
+
+	previousTicketSum := 0
+	selected_node_id := "Unknown"
+	for _, ticket := range n.tickets {
+		ticketSum += int(ticket.AmountSats)
+		if previousTicketSum <= selected && ticketSum > selected {
+			selected_node_id = ticket.NodeID
+			break
+		}
+		previousTicketSum = ticketSum
+	}
+	n.winners = append(n.winners, &Winner{selected_node_id, n.pot})
 }
 
 func (n *State) handlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
