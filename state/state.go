@@ -128,6 +128,8 @@ func (n *State) Reset() {
 	n.tickets = nil
 	n.pot = 0
 	n.countdown.lastTick = time.Now()
+	defaultTicket := Ticket{myNodeID, 10}
+	n.addTicketUnsafe(&defaultTicket)
 }
 
 func (n *State) selectWinner(totalNumberOfTickets int) {
