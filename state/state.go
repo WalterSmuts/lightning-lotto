@@ -87,6 +87,7 @@ func NewState() *State {
 	s.router = lnd.Router
 	countdown := newCountDownTimer(10 * time.Second)
 	s.countdown = countdown
+	s.setStartingValues()
 	return &s
 }
 
@@ -124,7 +125,10 @@ func (n *State) Reset() {
 	if totalNumberOfTickets > 0 {
 		n.selectWinner(totalNumberOfTickets)
 	}
+	n.setStartingValues()
+}
 
+func (n *State) setStartingValues() {
 	n.tickets = nil
 	n.pot = 0
 	n.countdown.lastTick = time.Now()
