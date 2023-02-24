@@ -1,0 +1,170 @@
+version: '3'
+services:
+  bitcoind:
+    image: ruimarinho/bitcoin-core:22
+    restart: unless-stopped
+    ports:
+      - 18443:18443
+      - 28332:28332
+      - 28333:28333
+    networks:
+      - regtest
+    command:
+      - "-txindex"
+      - "-regtest"
+      - "-rest"
+      - "-printtoconsole"
+      - "-zmqpubrawblock=tcp://0.0.0.0:28332"
+      - "-zmqpubrawtx=tcp://0.0.0.0:28333"
+      - "-rpcport=18443"
+      - "-rpcbind=0.0.0.0"
+      - "-rpcuser=lightning"
+      - "-rpcpassword=lightning"
+      - "-rpcallowip=172.0.0.0/0"
+      - "-fallbackfee=0.0002"
+      - "-wallet=/home/bitcoin/.bitcoin/regtest/wallets/miner"
+
+  alice:
+    image: lightninglabs/lnd:v0.15.5-beta
+    hostname: alice
+    restart: unless-stopped
+    ports:
+      - 10009:10009
+      - 9735:9735
+      - 8080:8080
+    networks:
+      - regtest
+    volumes:
+      - "alice:/root/.lnd"
+    depends_on:
+      - bitcoind
+    command:
+      - "--logdir=/root/.lnd"
+      - "--alias=alice"
+      - "--rpclisten=0.0.0.0:10009"
+      - "--restlisten=0.0.0.0:8080"
+      - "--color=#cccccc"
+      - "--noseedbackup"
+      - "--bitcoin.active"
+      - "--bitcoin.regtest"
+      - "--bitcoin.node=bitcoind"
+      - "--bitcoind.rpchost=regtest-bitcoind-1"
+      - "--bitcoind.rpcuser=lightning"
+      - "--bitcoind.rpcpass=lightning"
+      - "--bitcoind.zmqpubrawblock=tcp://regtest-bitcoind-1:28332"
+      - "--bitcoind.zmqpubrawtx=tcp://regtest-bitcoind-1:28333"
+      - "--debuglevel=debug"
+      - "--externalip=regtest-alice-1"
+      - "--accept-keysend"
+      - "--trickledelay=50"
+
+  bob:
+    image: lightninglabs/lnd:v0.15.5-beta
+    hostname: bob
+    restart: unless-stopped
+    ports:
+      - 10012:10009
+      - 9742:9735
+      - 8092:8080
+    networks:
+      - regtest
+    volumes:
+      - "bob:/root/.lnd"
+    depends_on:
+      - bitcoind
+    command:
+      - "--logdir=/root/.lnd"
+      - "--alias=bob"
+      - "--rpclisten=0.0.0.0:10009"
+      - "--restlisten=0.0.0.0:8080"
+      - "--color=#cccccc"
+      - "--noseedbackup"
+      - "--bitcoin.active"
+      - "--bitcoin.regtest"
+      - "--bitcoin.node=bitcoind"
+      - "--bitcoind.rpchost=regtest-bitcoind-1"
+      - "--bitcoind.rpcuser=lightning"
+      - "--bitcoind.rpcpass=lightning"
+      - "--bitcoind.zmqpubrawblock=tcp://regtest-bitcoind-1:28332"
+      - "--bitcoind.zmqpubrawtx=tcp://regtest-bitcoind-1:28333"
+      - "--debuglevel=debug"
+      - "--externalip=regtest-bob-1"
+      - "--accept-keysend"
+      - "--trickledelay=50"
+
+  charlie:
+    image: lightninglabs/lnd:v0.15.0-beta
+    hostname: charlie
+    restart: unless-stopped
+    ports:
+      - 10013:10009
+      - 9743:9735
+      - 8093:8080
+    networks:
+      - regtest
+    volumes:
+      - "charlie:/root/.lnd"
+    depends_on:
+      - bitcoind
+    command:
+      - "--logdir=/root/.lnd"
+      - "--alias=charlie"
+      - "--rpclisten=0.0.0.0:10009"
+      - "--restlisten=0.0.0.0:8080"
+      - "--color=#cccccc"
+      - "--noseedbackup"
+      - "--bitcoin.active"
+      - "--bitcoin.regtest"
+      - "--bitcoin.node=bitcoind"
+      - "--bitcoind.rpchost=regtest-bitcoind-1"
+      - "--bitcoind.rpcuser=lightning"
+      - "--bitcoind.rpcpass=lightning"
+      - "--bitcoind.zmqpubrawblock=tcp://regtest-bitcoind-1:28332"
+      - "--bitcoind.zmqpubrawtx=tcp://regtest-bitcoind-1:28333"
+      - "--debuglevel=debug"
+      - "--externalip=regtest-charlie-1"
+      - "--accept-keysend"
+      - "--trickledelay=50"
+
+  dave:
+    image: lightninglabs/lnd:v0.14.1-beta
+    hostname: dave
+    restart: unless-stopped
+    ports:
+      - 10014:10009
+      - 9744:9735
+      - 8094:8080
+    networks:
+      - regtest
+    volumes:
+      - "dave:/root/.lnd"
+    depends_on:
+      - bitcoind
+    command:
+      - "--logdir=/root/.lnd"
+      - "--alias=dave"
+      - "--rpclisten=0.0.0.0:10009"
+      - "--restlisten=0.0.0.0:8080"
+      - "--color=#cccccc"
+      - "--noseedbackup"
+      - "--bitcoin.active"
+      - "--bitcoin.regtest"
+      - "--bitcoin.node=bitcoind"
+      - "--bitcoind.rpchost=regtest-bitcoind-1"
+      - "--bitcoind.rpcuser=lightning"
+      - "--bitcoind.rpcpass=lightning"
+      - "--bitcoind.zmqpubrawblock=tcp://regtest-bitcoind-1:28332"
+      - "--bitcoind.zmqpubrawtx=tcp://regtest-bitcoind-1:28333"
+      - "--debuglevel=debug"
+      - "--externalip=regtest-dave-1"
+      - "--accept-keysend"
+      - "--trickledelay=50"
+
+volumes:
+  alice:
+  bob:
+  charlie:
+  dave:
+
+networks:
+  regtest:
