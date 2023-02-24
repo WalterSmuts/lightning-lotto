@@ -50,6 +50,7 @@ type State struct {
 	pot            uint64
 	lnd            lndclient.LightningClient
 	invoice_client lndclient.InvoicesClient
+	router         lndclient.RouterClient
 }
 
 type displayState struct {
@@ -74,6 +75,7 @@ func NewState() *State {
 
 	s.lnd = lnd.Client
 	s.invoice_client = lnd.Invoices
+	s.router = lnd.Router
 	countdown := newCountDownTimer(10 * time.Second)
 	s.countdown = countdown
 	return &s
