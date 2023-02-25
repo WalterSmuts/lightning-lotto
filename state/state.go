@@ -106,7 +106,7 @@ func (n *State) CountdownTimerChannel() <-chan time.Time {
 func (n *State) addTicket(ticket *Ticket) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.addTicket(ticket)
+	n.addTicketUnsafe(ticket)
 }
 
 func (n *State) addTicketUnsafe(ticket *Ticket) {
