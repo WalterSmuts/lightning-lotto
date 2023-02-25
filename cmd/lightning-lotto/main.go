@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	qrcode "github.com/skip2/go-qrcode"
+	"github.com/waltersmuts/lightning-lotto/config"
 	"github.com/waltersmuts/lightning-lotto/state"
 )
 
@@ -22,6 +23,7 @@ func handleInvoiceQR(c *gin.Context) {
 }
 
 func main() {
+	config.InitConfig()
 	s := state.NewState()
 	done := make(chan bool)
 
