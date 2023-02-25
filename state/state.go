@@ -14,9 +14,8 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/routing/route"
+	"github.com/waltersmuts/lightning-lotto/config"
 )
-
-const myNodeID string = "03ef68ccd4b33ae540aea5bf91fcfc70137e031e0cf3823a958c3c3d69239eb7cd"
 
 type Ticket struct {
 	NodeID     string
@@ -73,9 +72,9 @@ func NewState() *State {
 	var s State
 	lnd, err := lndclient.NewLndServices(&lndclient.LndServicesConfig{
 		LndAddress:  "localhost",
-		Network:     "mainnet",
-		MacaroonDir: "/home/walter/.lnd/data/chain/bitcoin/mainnet",
-		TLSPath:     "/home/walter/.lnd/tls.cert",
+		Network:     config.Config.Network,
+		MacaroonDir: config.Config.MacaroonDir,
+		TLSPath:     config.Config.TLSPath,
 	})
 	if err != nil {
 		fmt.Printf("%v", err)
@@ -132,7 +131,7 @@ func (n *State) setStartingValues() {
 	n.tickets = nil
 	n.pot = 0
 	n.countdown.lastTick = time.Now()
-	defaultTicket := Ticket{myNodeID, 10}
+	defaultTicket := Ticket{config.Config.MyNodeID, 10}
 	n.addTicketUnsafe(&defaultTicket)
 }
 
@@ -150,7 +149,7 @@ func (n *State) selectWinner(totalNumberOfTickets int) {
 		}
 		previousTicketSum = ticketSum
 	}
-	if selectedNodeID != myNodeID {
+	if selectedNodeID != config.Config.MyNodeID {
 		n.payWinner(selectedNodeID)
 	}
 	n.winners = append(n.winners, &Winner{selectedNodeID, n.getPayoutSize()})
