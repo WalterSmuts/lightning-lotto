@@ -27,19 +27,19 @@ type Winner struct {
 	AmountSats uint64
 }
 
-type countdownTimer struct {
+type CountdownTimer struct {
 	ticker   time.Ticker
 	lastTick time.Time
 	duration time.Duration
 }
 
-func (t countdownTimer) timeLeft() time.Duration {
+func (t CountdownTimer) TimeLeft() time.Duration {
 	timeLeft := (t.duration - time.Now().Sub(t.lastTick))
 	return timeLeft
 }
 
-func newCountDownTimer(duration time.Duration) countdownTimer {
-	return countdownTimer{*time.NewTicker(duration), time.Now(), duration}
+func newCountDownTimer(duration time.Duration) CountdownTimer {
+	return CountdownTimer{*time.NewTicker(duration), time.Now(), duration}
 }
 
 func (t *Ticket) String() string {
@@ -49,23 +49,23 @@ func (t *Ticket) String() string {
 type State struct {
 	tickets        []*Ticket
 	winners        []*Winner
-	countdown      countdownTimer
+	Countdown      CountdownTimer
 	mu             sync.RWMutex
 	pot            uint64
-	lnd            lndclient.LightningClient
-	invoice_client lndclient.InvoicesClient
-	router         lndclient.RouterClient
+	Lnd            lndclient.LightningClient
+	Invoice_client lndclient.InvoicesClient
+	Router         lndclient.RouterClient
 }
 
 func (n *State) getPayoutSize() uint64 {
 	return uint64(float64(n.pot) * 0.99)
 }
 
-type displayState struct {
-	tickets  []*Ticket
-	winners  []*Winner
-	timeLeft time.Duration
-	pot      uint64
+type DisplayState struct {
+	Tickets  []*Ticket
+	Winners  []*Winner
+	TimeLeft time.Duration
+	Pot      uint64
 }
 
 func NewState() *State {
@@ -81,28 +81,28 @@ func NewState() *State {
 		panic(err)
 	}
 
-	s.lnd = lnd.Client
-	s.invoice_client = lnd.Invoices
-	s.router = lnd.Router
+	s.Lnd = lnd.Client
+	s.Invoice_client = lnd.Invoices
+	s.Router = lnd.Router
 	countdown := newCountDownTimer(10 * time.Second)
-	s.countdown = countdown
+	s.Countdown = countdown
 	s.setStartingValues()
 	return &s
 }
 
-func (n *State) readDisplayState() *displayState {
+func (n *State) ReadDisplayState() *DisplayState {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	timeLeft := n.countdown.timeLeft()
+	timeLeft := n.Countdown.TimeLeft()
 
-	return &displayState{n.tickets, n.winners, timeLeft, n.getPayoutSize()}
+	return &DisplayState{n.tickets, n.winners, timeLeft, n.getPayoutSize()}
 }
 
 func (n *State) CountdownTimerChannel() <-chan time.Time {
-	return n.countdown.ticker.C
+	return n.Countdown.ticker.C
 }
 
-func (n *State) addTicket(ticket *Ticket) {
+func (n *State) AddTicket(ticket *Ticket) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.addTicketUnsafe(ticket)
@@ -130,7 +130,7 @@ func (n *State) Reset() {
 func (n *State) setStartingValues() {
 	n.tickets = nil
 	n.pot = 0
-	n.countdown.lastTick = time.Now()
+	n.Countdown.lastTick = time.Now()
 	defaultTicket := Ticket{config.Config.MyNodeID, 10}
 	n.addTicketUnsafe(&defaultTicket)
 }
@@ -167,7 +167,7 @@ func (n *State) payWinner(nodeID string) {
 	request.MaxFee = btcutil.Amount(float64(n.getPayoutSize()) * 0.001)
 	request.Timeout = time.Minute
 	request.Target = vertex
-	paymentChan, errChan, err := n.router.SendPayment(context.Background(), request)
+	paymentChan, errChan, err := n.Router.SendPayment(context.Background(), request)
 	if err != nil {
 		fmt.Printf("ERROR %v", err)
 	} else {
@@ -189,8 +189,8 @@ func (n *State) payWinner(nodeID string) {
 	}
 }
 
-func (n *State) handlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
-	updateChan, errChan, err := n.invoice_client.SubscribeSingleInvoice(context.Background(), hash)
+func (n *State) HandlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
+	updateChan, errChan, err := n.Invoice_client.SubscribeSingleInvoice(context.Background(), hash)
 	if err != nil {
 		fmt.Printf("ERROR %v", err)
 		return

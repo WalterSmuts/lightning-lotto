@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/waltersmuts/lightning-lotto/config"
+	"github.com/waltersmuts/lightning-lotto/routes"
 	"github.com/waltersmuts/lightning-lotto/state"
 )
 
@@ -41,9 +42,9 @@ func main() {
 
 	r := gin.Default()
 	r.LoadHTMLGlob("static/*.html")
-	r.GET("/", s.PrintTickets)
-	r.GET("/add_ticket_request", s.AddTicketRequest)
+	r.GET("/", routes.PrintTickets(s))
+	r.GET("/add_ticket_request", routes.AddTicketRequest(s))
 	r.GET("/invoice_qr", handleInvoiceQR)
-	r.GET("/ws/poll_invoice", s.HandlePollInvoiceRequest)
+	r.GET("/ws/poll_invoice", routes.HandlePollInvoiceRequest(s))
 	r.Run(":8090")
 }
