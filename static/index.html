@@ -2,7 +2,7 @@
 <html>
 <body>
 <h1>Lightning-Lotto!</h1>
-<h3>{{.pot}} sats and counting... Awarded in:</h2>
+<h3><div id="pot"></div> sats and counting... Awarded in:</h2>
 <h2 id=countdown_timer></h2>
 
 <div id="invoice">
@@ -18,10 +18,7 @@
 
 <h2>Participants</h2>
 
-<ul>
-  {{range .payload}}
-  <li>Alias: {{.NodeID}} Tickets: {{.AmountSats}}</li>
-  {{ end }}
+<ul id="tickets">
 </ul>
 
 <h2>Winners</h2>
@@ -33,6 +30,7 @@
 </ul>
 
 <script>
+	var pot = 0;
 	const countDownDate = new Date().getTime() + {{.time_left_ms}}
 	const form = document.getElementById('add_ticket');
 
@@ -64,6 +62,45 @@
 		document.getElementById("countdown_timer").innerHTML = minutes + "m " + seconds + "s ";
 
 	}
+
+	function render_pot() {
+		var pot_display = document.getElementById('pot');
+		pot_display.innerHTML = Math.round(pot * 0.99)
+	}
+
+	function add_to_pot(sats) {
+		pot += sats
+		render_pot()
+	}
+
+var uri= window.location.host + '/ws/stream_tickets'
+let socket = new WebSocket('ws://' + uri);
+socket.onopen = function(e) {
+  console.log("Opened ticket streaming WebSocket connection");
+};
+
+socket.onmessage = function(event) {
+  console.log("received data from ws: ${event.data}");
+  ticket = JSON.parse(event.data);
+
+  var list = document.getElementById('tickets');
+  var entry = document.createElement('li');
+  entry.appendChild(document.createTextNode("NodeID: " + ticket.NodeID + " Tickets:" + ticket.AmountSats));
+  list.appendChild(entry);
+  add_to_pot(parseInt(ticket.AmountSats))
+};
+
+socket.onclose = function(event) {
+  if (event.wasClean) {
+    console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+  } else {
+    alert('[close] Connection died');
+  }
+};
+
+socket.onerror = function(error) {
+  alert(`[error]`);
+};
 </script>
 
 </body>
