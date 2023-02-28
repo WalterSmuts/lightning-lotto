@@ -92,6 +92,18 @@ func HandlePollInvoiceRequest(n *state.State) func(c *gin.Context) {
 	}
 }
 
+func HandleStreamTicketsWs(n *state.State) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		fmt.Println("Received connection")
+		ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			fmt.Printf("ERROR %v", err)
+			return
+		}
+		n.HandleStreamTicketsWs(ws)
+	}
+}
+
 func PrintTickets(n *state.State) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		displayState := n.ReadDisplayState()

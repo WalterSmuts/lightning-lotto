@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -47,14 +48,15 @@ func (t *Ticket) String() string {
 }
 
 type State struct {
-	tickets        []*Ticket
-	winners        []*Winner
-	Countdown      CountdownTimer
-	mu             sync.RWMutex
-	pot            uint64
-	Lnd            lndclient.LightningClient
-	Invoice_client lndclient.InvoicesClient
-	Router         lndclient.RouterClient
+	tickets         []*Ticket
+	ticketObservers map[chan Ticket]struct{}
+	winners         []*Winner
+	Countdown       CountdownTimer
+	mu              sync.RWMutex
+	pot             uint64
+	Lnd             lndclient.LightningClient
+	Invoice_client  lndclient.InvoicesClient
+	Router          lndclient.RouterClient
 }
 
 func (n *State) getPayoutSize() uint64 {
@@ -84,9 +86,10 @@ func NewState() *State {
 	s.Lnd = lnd.Client
 	s.Invoice_client = lnd.Invoices
 	s.Router = lnd.Router
-	countdown := newCountDownTimer(10 * time.Second)
+	countdown := newCountDownTimer(2 * time.Minute)
 	s.Countdown = countdown
 	s.setStartingValues()
+	s.ticketObservers = make(map[chan Ticket]struct{})
 	return &s
 }
 
@@ -111,6 +114,9 @@ func (n *State) AddTicket(ticket *Ticket) {
 func (n *State) addTicketUnsafe(ticket *Ticket) {
 	n.tickets = append(n.tickets, ticket)
 	n.pot += ticket.AmountSats
+
+	// This will deadlock if we don't execute in different go-routine
+	go n.notifyAllTicketObservers(*ticket)
 }
 
 func (n *State) Reset() {
@@ -210,6 +216,66 @@ func (n *State) HandlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
 			}
 		case err := <-errChan:
 			fmt.Printf("ERROR %v\n", err)
+		}
+	}
+}
+func (n *State) registerTicketStream() chan Ticket {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	type void struct{}
+	var member void
+
+	channel := make(chan Ticket, len(n.tickets))
+
+	for _, ticket := range n.tickets {
+		channel <- *ticket
+	}
+	n.ticketObservers[channel] = member
+	fmt.Printf("Registering ticket observer\n")
+
+	return channel
+}
+
+func (n *State) deregisterTicketStream(ticket_chan chan Ticket) {
+	fmt.Printf("Deregistering ticket observer\n")
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	delete(n.ticketObservers, ticket_chan)
+}
+
+func (n *State) notifyAllTicketObservers(ticket Ticket) {
+	fmt.Println("Starting notification of ticket observers")
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	for observer := range n.ticketObservers {
+		observer <- ticket
+	}
+	fmt.Println("Done notifying ticket observers")
+
+}
+
+func (n *State) HandleStreamTicketsWs(ws *websocket.Conn) {
+	updateChan := n.registerTicketStream()
+	defer n.deregisterTicketStream(updateChan)
+	ws.SetCloseHandler(func(code int, text string) error {
+		n.deregisterTicketStream(updateChan)
+		return nil
+	})
+
+	for {
+		ticket := <-updateChan
+		json, err := json.Marshal(ticket)
+		if err != nil {
+			fmt.Printf("ERR %v\n", err)
+			return
+		}
+
+		err = ws.WriteMessage(websocket.TextMessage, json)
+		if err != nil {
+			fmt.Printf("ERR %v\n", err)
+			return
 		}
 	}
 }

@@ -46,5 +46,6 @@ func main() {
 	r.GET("/add_ticket_request", routes.AddTicketRequest(s))
 	r.GET("/invoice_qr", handleInvoiceQR)
 	r.GET("/ws/poll_invoice", routes.HandlePollInvoiceRequest(s))
+	r.GET("/ws/stream_tickets", routes.HandleStreamTicketsWs(s))
 	r.Run(":8090")
 }
