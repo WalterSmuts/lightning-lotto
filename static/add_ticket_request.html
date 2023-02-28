@@ -7,7 +7,7 @@
 
 <script id="add_ticket_request_js">
 var uri= window.location.host + '/ws/poll_invoice?hash={{.hash}}'
-let socket = new WebSocket('wss://' + uri);
+let socket = new WebSocket('{{.ws}}://' + uri);
 socket.onopen = function(e) {
   console.log("Opened WebSocket connection");
 };

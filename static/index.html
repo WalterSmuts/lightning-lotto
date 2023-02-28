@@ -75,7 +75,7 @@
 	}
 
 var uri= window.location.host + '/ws/stream_tickets'
-let socket = new WebSocket('ws://' + uri);
+let socket = new WebSocket('{{.ws}}://' + uri);
 socket.onopen = function(e) {
   console.log("Opened ticket streaming WebSocket connection");
 };

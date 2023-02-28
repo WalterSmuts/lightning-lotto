@@ -13,6 +13,7 @@ import (
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwire"
 
+	"github.com/waltersmuts/lightning-lotto/config"
 	"github.com/waltersmuts/lightning-lotto/state"
 )
 
@@ -68,7 +69,7 @@ func AddTicketRequest(n *state.State) func(c *gin.Context) {
 			return
 		}
 
-		c.HTML(http.StatusPaymentRequired, "add_ticket_request.html", gin.H{"time_left": timeLeft, "invoice": invoice, "hash": hash})
+		c.HTML(http.StatusPaymentRequired, "add_ticket_request.html", gin.H{"time_left": timeLeft, "invoice": invoice, "hash": hash, "ws": config.Config.Ws})
 	}
 }
 
@@ -107,6 +108,6 @@ func HandleStreamTicketsWs(n *state.State) func(c *gin.Context) {
 func PrintTickets(n *state.State) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		displayState := n.ReadDisplayState()
-		c.HTML(http.StatusOK, "index.html", gin.H{"payload": displayState.Tickets, "pot": displayState.Pot, "time_left_ms": displayState.TimeLeft.Milliseconds(), "winners": displayState.Winners})
+		c.HTML(http.StatusOK, "index.html", gin.H{"payload": displayState.Tickets, "pot": displayState.Pot, "time_left_ms": displayState.TimeLeft.Milliseconds(), "winners": displayState.Winners, "ws": config.Config.Ws})
 	}
 }
