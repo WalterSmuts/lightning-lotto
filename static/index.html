@@ -42,6 +42,7 @@
 		const xhttp = new XMLHttpRequest();
 		xhttp.onload = function() {
 			document.getElementById("invoice").innerHTML = this.responseText;
+			eval(document.getElementById("add_ticket_request_js").innerHTML)
 		}
 		url = "/add_ticket_request?node_id=" +  node_id +"&amount=" + sats
 		xhttp.open("GET", url, true);

@@ -5,7 +5,7 @@
 
 <img src="invoice_qr?invoice={{.invoice}}" alt="invoice">
 
-<script>
+<script id="add_ticket_request_js">
 var uri= window.location.host + '/ws/poll_invoice?hash={{.hash}}'
 let socket = new WebSocket('wss://' + uri);
 socket.onopen = function(e) {
