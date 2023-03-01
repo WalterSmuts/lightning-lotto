@@ -59,8 +59,8 @@ type State struct {
 	Router          lndclient.RouterClient
 }
 
-func (n *State) getPayoutSize() uint64 {
-	return uint64(float64(n.pot) * 0.99)
+func (state *State) getPayoutSize() uint64 {
+	return uint64(float64(state.pot) * 0.99)
 }
 
 type DisplayState struct {
@@ -93,61 +93,61 @@ func NewState() *State {
 	return &s
 }
 
-func (n *State) ReadDisplayState() *DisplayState {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	timeLeft := n.Countdown.TimeLeft()
+func (state *State) ReadDisplayState() *DisplayState {
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	timeLeft := state.Countdown.TimeLeft()
 
-	return &DisplayState{n.tickets, n.winners, timeLeft, n.getPayoutSize()}
+	return &DisplayState{state.tickets, state.winners, timeLeft, state.getPayoutSize()}
 }
 
-func (n *State) CountdownTimerChannel() <-chan time.Time {
-	return n.Countdown.ticker.C
+func (state *State) CountdownTimerChannel() <-chan time.Time {
+	return state.Countdown.ticker.C
 }
 
-func (n *State) AddTicket(ticket *Ticket) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.addTicketUnsafe(ticket)
+func (state *State) AddTicket(ticket *Ticket) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	state.addTicketUnsafe(ticket)
 }
 
-func (n *State) addTicketUnsafe(ticket *Ticket) {
-	n.tickets = append(n.tickets, ticket)
-	n.pot += ticket.AmountSats
+func (state *State) addTicketUnsafe(ticket *Ticket) {
+	state.tickets = append(state.tickets, ticket)
+	state.pot += ticket.AmountSats
 
 	// This will deadlock if we don't execute in different go-routine
-	go n.notifyAllTicketObservers(*ticket)
+	go state.notifyAllTicketObservers(*ticket)
 }
 
-func (n *State) Reset() {
-	n.mu.Lock()
-	defer n.mu.Unlock()
+func (state *State) Reset() {
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	totalNumberOfTickets := 0
-	for _, ticket := range n.tickets {
+	for _, ticket := range state.tickets {
 		totalNumberOfTickets += int(ticket.AmountSats)
 	}
 
 	if totalNumberOfTickets > 0 {
-		n.selectWinner(totalNumberOfTickets)
+		state.selectWinner(totalNumberOfTickets)
 	}
-	n.setStartingValues()
+	state.setStartingValues()
 }
 
-func (n *State) setStartingValues() {
-	n.tickets = nil
-	n.pot = 0
-	n.Countdown.lastTick = time.Now()
+func (state *State) setStartingValues() {
+	state.tickets = nil
+	state.pot = 0
+	state.Countdown.lastTick = time.Now()
 	defaultTicket := Ticket{config.Config.MyNodeID, 10}
-	n.addTicketUnsafe(&defaultTicket)
+	state.addTicketUnsafe(&defaultTicket)
 }
 
-func (n *State) selectWinner(totalNumberOfTickets int) {
+func (state *State) selectWinner(totalNumberOfTickets int) {
 	selected := rand.Intn(totalNumberOfTickets)
 	ticketSum := 0
 
 	previousTicketSum := 0
 	selectedNodeID := "Unknown"
-	for _, ticket := range n.tickets {
+	for _, ticket := range state.tickets {
 		ticketSum += int(ticket.AmountSats)
 		if previousTicketSum <= selected && ticketSum > selected {
 			selectedNodeID = ticket.NodeID
@@ -156,12 +156,12 @@ func (n *State) selectWinner(totalNumberOfTickets int) {
 		previousTicketSum = ticketSum
 	}
 	if selectedNodeID != config.Config.MyNodeID {
-		n.payWinner(selectedNodeID)
+		state.payWinner(selectedNodeID)
 	}
-	n.winners = append(n.winners, &Winner{selectedNodeID, n.getPayoutSize()})
+	state.winners = append(state.winners, &Winner{selectedNodeID, state.getPayoutSize()})
 }
 
-func (n *State) payWinner(nodeID string) {
+func (state *State) payWinner(nodeID string) {
 	vertex, err := route.NewVertexFromStr(nodeID)
 	if err != nil {
 		fmt.Printf("ERROR %v\n", err)
@@ -169,11 +169,11 @@ func (n *State) payWinner(nodeID string) {
 	}
 	request := lndclient.SendPaymentRequest{}
 	request.KeySend = true
-	request.Amount = btcutil.Amount(n.getPayoutSize())
-	request.MaxFee = btcutil.Amount(float64(n.getPayoutSize()) * 0.001)
+	request.Amount = btcutil.Amount(state.getPayoutSize())
+	request.MaxFee = btcutil.Amount(float64(state.getPayoutSize()) * 0.001)
 	request.Timeout = time.Minute
 	request.Target = vertex
-	paymentChan, errChan, err := n.Router.SendPayment(context.Background(), request)
+	paymentChan, errChan, err := state.Router.SendPayment(context.Background(), request)
 	if err != nil {
 		fmt.Printf("ERROR %v", err)
 	} else {
@@ -195,8 +195,8 @@ func (n *State) payWinner(nodeID string) {
 	}
 }
 
-func (n *State) HandlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
-	updateChan, errChan, err := n.Invoice_client.SubscribeSingleInvoice(context.Background(), hash)
+func (state *State) HandlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
+	updateChan, errChan, err := state.Invoice_client.SubscribeSingleInvoice(context.Background(), hash)
 	if err != nil {
 		fmt.Printf("ERROR %v", err)
 		return
@@ -219,48 +219,48 @@ func (n *State) HandlePollInvoiceWs(ws *websocket.Conn, hash lntypes.Hash) {
 		}
 	}
 }
-func (n *State) registerTicketStream() chan Ticket {
-	n.mu.Lock()
-	defer n.mu.Unlock()
+func (state *State) registerTicketStream() chan Ticket {
+	state.mu.Lock()
+	defer state.mu.Unlock()
 
 	type void struct{}
 	var member void
 
-	channel := make(chan Ticket, len(n.tickets))
+	channel := make(chan Ticket, len(state.tickets))
 
-	for _, ticket := range n.tickets {
+	for _, ticket := range state.tickets {
 		channel <- *ticket
 	}
-	n.ticketObservers[channel] = member
+	state.ticketObservers[channel] = member
 	fmt.Printf("Registering ticket observer\n")
 
 	return channel
 }
 
-func (n *State) deregisterTicketStream(ticket_chan chan Ticket) {
+func (state *State) deregisterTicketStream(ticket_chan chan Ticket) {
 	fmt.Printf("Deregistering ticket observer\n")
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	delete(n.ticketObservers, ticket_chan)
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	delete(state.ticketObservers, ticket_chan)
 }
 
-func (n *State) notifyAllTicketObservers(ticket Ticket) {
+func (state *State) notifyAllTicketObservers(ticket Ticket) {
 	fmt.Println("Starting notification of ticket observers")
-	n.mu.RLock()
-	defer n.mu.RUnlock()
+	state.mu.RLock()
+	defer state.mu.RUnlock()
 
-	for observer := range n.ticketObservers {
+	for observer := range state.ticketObservers {
 		observer <- ticket
 	}
 	fmt.Println("Done notifying ticket observers")
 
 }
 
-func (n *State) HandleStreamTicketsWs(ws *websocket.Conn) {
-	updateChan := n.registerTicketStream()
-	defer n.deregisterTicketStream(updateChan)
+func (state *State) HandleStreamTicketsWs(ws *websocket.Conn) {
+	updateChan := state.registerTicketStream()
+	defer state.deregisterTicketStream(updateChan)
 	ws.SetCloseHandler(func(code int, text string) error {
-		n.deregisterTicketStream(updateChan)
+		state.deregisterTicketStream(updateChan)
 		return nil
 	})
 
