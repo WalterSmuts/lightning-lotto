@@ -246,8 +246,8 @@ func (n *State) deregisterTicketStream(ticket_chan chan Ticket) {
 
 func (n *State) notifyAllTicketObservers(ticket Ticket) {
 	fmt.Println("Starting notification of ticket observers")
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.mu.RLock()
+	defer n.mu.RUnlock()
 
 	for observer := range n.ticketObservers {
 		observer <- ticket
