@@ -16,6 +16,7 @@ import (
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/waltersmuts/lightning-lotto/config"
+	"github.com/waltersmuts/lightning-lotto/timer"
 )
 
 type Ticket struct {
@@ -28,21 +29,6 @@ type Winner struct {
 	AmountSats uint64
 }
 
-type CountdownTimer struct {
-	ticker   time.Ticker
-	lastTick time.Time
-	duration time.Duration
-}
-
-func (t CountdownTimer) TimeLeft() time.Duration {
-	timeLeft := (t.duration - time.Now().Sub(t.lastTick))
-	return timeLeft
-}
-
-func newCountDownTimer(duration time.Duration) CountdownTimer {
-	return CountdownTimer{*time.NewTicker(duration), time.Now(), duration}
-}
-
 func (t *Ticket) String() string {
 	return fmt.Sprintf("%s:%d\n", t.NodeID, t.AmountSats)
 }
@@ -51,7 +37,7 @@ type State struct {
 	tickets         []*Ticket
 	ticketObservers map[chan Ticket]struct{}
 	winners         []*Winner
-	Countdown       CountdownTimer
+	Countdown       timer.CountdownTimer
 	mu              sync.RWMutex
 	pot             uint64
 	Lnd             lndclient.LightningClient
@@ -86,15 +72,7 @@ func NewState() *State {
 	s.Lnd = lnd.Client
 	s.Invoice_client = lnd.Invoices
 	s.Router = lnd.Router
-	countdown := newCountDownTimer(2 * time.Minute)
-
-	go func() {
-		for {
-			t := <-countdown.ticker.C
-			fmt.Println("Cleared at", t)
-			s.Reset()
-		}
-	}()
+	countdown := timer.NewCountDownTimer(2*time.Minute, func() { s.Reset() })
 
 	s.Countdown = countdown
 	s.setStartingValues()
@@ -141,7 +119,6 @@ func (state *State) Reset() {
 func (state *State) setStartingValues() {
 	state.tickets = nil
 	state.pot = 0
-	state.Countdown.lastTick = time.Now()
 	defaultTicket := Ticket{config.Config.MyNodeID, 10}
 	state.addTicketUnsafe(&defaultTicket)
 }
