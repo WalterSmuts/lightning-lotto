@@ -12,10 +12,33 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/skip2/go-qrcode"
 
 	"github.com/waltersmuts/lightning-lotto/config"
 	"github.com/waltersmuts/lightning-lotto/state"
 )
+
+func handleInvoiceQR(c *gin.Context) {
+	invoice := c.Request.URL.Query().Get("invoice")
+	png, err := qrcode.Encode(invoice, qrcode.Medium, 256)
+	if err != nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR %v", err))
+		return
+	}
+
+	c.Header("Content-Type", "image/png")
+	c.Writer.Write(png)
+}
+
+func RegisterRoutes(engine *gin.Engine, state *state.State) {
+	engine.LoadHTMLGlob("static/*.html")
+	engine.GET("/", printTickets(state))
+	engine.GET("/add_ticket_request", addTicketRequest(state))
+	engine.GET("/invoice_qr", handleInvoiceQR)
+	engine.GET("/ws/poll_invoice", handlePollInvoiceRequest(state))
+	engine.GET("/ws/stream_tickets", handleStreamTicketsWs(state))
+
+}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -25,7 +48,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func AddTicketRequest(n *state.State) func(c *gin.Context) {
+func addTicketRequest(n *state.State) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		nodeID := c.Request.URL.Query().Get("node_id")
 		amountSatsString := c.Request.URL.Query().Get("amount")
@@ -73,7 +96,7 @@ func AddTicketRequest(n *state.State) func(c *gin.Context) {
 	}
 }
 
-func HandlePollInvoiceRequest(n *state.State) func(c *gin.Context) {
+func handlePollInvoiceRequest(n *state.State) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		hash_str := c.Request.URL.Query().Get("hash")
 		hash, err := lntypes.MakeHashFromStr(hash_str)
@@ -93,7 +116,7 @@ func HandlePollInvoiceRequest(n *state.State) func(c *gin.Context) {
 	}
 }
 
-func HandleStreamTicketsWs(n *state.State) func(c *gin.Context) {
+func handleStreamTicketsWs(n *state.State) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		fmt.Println("Received connection")
 		ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -105,7 +128,7 @@ func HandleStreamTicketsWs(n *state.State) func(c *gin.Context) {
 	}
 }
 
-func PrintTickets(n *state.State) func(c *gin.Context) {
+func printTickets(n *state.State) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		displayState := n.ReadDisplayState()
 		c.HTML(http.StatusOK, "index.html", gin.H{"payload": displayState.Tickets, "pot": displayState.Pot, "time_left_ms": displayState.TimeLeft.Milliseconds(), "winners": displayState.Winners, "ws": config.Config.Ws})
