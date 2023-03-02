@@ -12,17 +12,12 @@ import (
 func main() {
 	config.InitConfig()
 	state := state.NewState()
-	done := make(chan bool)
 
 	go func() {
 		for {
-			select {
-			case <-done:
-				return
-			case t := <-state.CountdownTimerChannel():
-				fmt.Println("Cleared at", t)
-				state.Reset()
-			}
+			t := <-state.CountdownTimerChannel()
+			fmt.Println("Cleared at", t)
+			state.Reset()
 		}
 	}()
 
