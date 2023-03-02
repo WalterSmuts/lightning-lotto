@@ -87,6 +87,15 @@ func NewState() *State {
 	s.Invoice_client = lnd.Invoices
 	s.Router = lnd.Router
 	countdown := newCountDownTimer(2 * time.Minute)
+
+	go func() {
+		for {
+			t := <-countdown.ticker.C
+			fmt.Println("Cleared at", t)
+			s.Reset()
+		}
+	}()
+
 	s.Countdown = countdown
 	s.setStartingValues()
 	s.ticketObservers = make(map[chan Ticket]struct{})
@@ -99,10 +108,6 @@ func (state *State) ReadDisplayState() *DisplayState {
 	timeLeft := state.Countdown.TimeLeft()
 
 	return &DisplayState{state.tickets, state.winners, timeLeft, state.getPayoutSize()}
-}
-
-func (state *State) CountdownTimerChannel() <-chan time.Time {
-	return state.Countdown.ticker.C
 }
 
 func (state *State) AddTicket(ticket *Ticket) {
