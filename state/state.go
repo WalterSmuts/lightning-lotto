@@ -152,7 +152,7 @@ func (state *State) payWinner(nodeID string) {
 	request := lndclient.SendPaymentRequest{}
 	request.KeySend = true
 	request.Amount = btcutil.Amount(state.getPayoutSize())
-	request.MaxFee = btcutil.Amount(float64(state.getPayoutSize()) * 0.001)
+	request.MaxFee = btcutil.Amount(float64(state.getPayoutSize())*0.001 + 10)
 	request.Timeout = time.Minute
 	request.Target = vertex
 	paymentChan, errChan, err := state.Router.SendPayment(context.Background(), request)
